@@ -1,0 +1,55 @@
+{
+  "name": "awesome-codeblock",
+  "main": "./lib/index",
+  "version": "0.8.3",
+  "description": "Awesome code blocks for Inkdrop: themes, titles, line & inline markers, diffs, collapsible sections, word wrap, line numbers, tabs and more",
+  "keywords": [
+    "inkdrop",
+    "codeblock",
+    "shiki",
+    "syntax-highlighting"
+  ],
+  "repository": "https://github.com/inkwadra/awesome-codeblock",
+  "license": "MIT",
+  "styleSheets": [
+    "awesome-codeblock.css"
+  ],
+  "files": [
+    "lib",
+    "styles"
+  ],
+  "engines": {
+    "inkdrop": "^6.1.3"
+  },
+  "scripts": {
+    "dev": "vp pack --watch",
+    "build": "vp pack",
+    "check": "vp check",
+    "typecheck": "vp check --no-fmt --no-lint",
+    "test": "vp test run",
+    "prepublishOnly": "vp check && vp test run && vp pack",
+    "icons": "vpx scripts/generate-icons.mjs",
+    "prepare": "vp config"
+  },
+  "devDependencies": {
+    "@codemirror/autocomplete": "^6.20.4",
+    "@codemirror/lang-markdown": "^6.5.2",
+    "@codemirror/language": "^6.13.1",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
+    "@inkdropapp/types": "^0.1.1",
+    "@lezer/common": "^1.5.5",
+    "@pierre/diffs": "1.6.4",
+    "@pierre/icons": "0.9.0",
+    "@pierre/vscode-icons": "0.0.9",
+    "@shikijs/engine-javascript": "4.6.0",
+    "@shikijs/transformers": "^4.6.0",
+    "@types/hast": "^3.0.5",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "shiki": "^4.6.0",
+    "typescript": "^7.0.2",
+    "vite-plus": "catalog:"
+  },
+  "packageManager": "pnpm@12.16.1"
+}

@@ -1,0 +1,905 @@
+/*
+ * awesome-codeblock
+ *
+ * One flat surface per block, painted with the Shiki theme. The header is the
+ * first row of that surface, not a separate bar. Chrome stays quiet; the
+ * colored language icon is the only accent.
+ *
+ * Inkdrop's preview styles live in cascade layers, so these unlayered rules
+ * win without `!important`.
+ *
+ * Set inline per block: from the Shiki theme
+ *   --acb-bg, --acb-fg, --acb-ln-fg, --acb-ln-active-fg, --acb-selection,
+ *   --acb-indent-guide, --acb-accent
+ * and from the block's options: --acb-tab-size, --acb-max-lines.
+ *
+ * Customize in your styles.less, e.g.
+ *   .acb-frame { --acb-radius: 6px; --acb-font-size: 0.9em; --acb-pad-x: 14px; }
+ */
+
+/* --------------------------------------------------------------------------
+ * Tokens
+ * ------------------------------------------------------------------------ */
+
+.acb-frame {
+  --acb-radius: 10px;
+  --acb-font: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  --acb-ui-font: var(--page-font, -apple-system, BlinkMacSystemFont, system-ui, sans-serif);
+  --acb-font-size: 0.85em;
+  --acb-line-height: 1.7;
+  --acb-pad-x: 18px;
+  --acb-header-h: 38px;
+  /* Vertical padding of the code; the top one is dropped under a header. */
+  --_pad-top: 14px;
+  --_pad-bottom: 16px;
+
+  --_bg: var(--acb-bg, var(--mde-preview-codeblock-background-color, transparent));
+  --_fg: var(--acb-fg, var(--mde-preview-codeblock-text-color, var(--text-color, currentColor)));
+  --_muted: color-mix(in srgb, var(--_fg) 58%, transparent);
+  --_faint: color-mix(in srgb, var(--_fg) 38%, transparent);
+  --_ring: color-mix(in srgb, var(--_fg) 9%, transparent);
+  --_hover: color-mix(in srgb, var(--_fg) 8%, transparent);
+  --_accent: var(--acb-accent, var(--primary-color, #3b82f6));
+
+  --_ok: light-dark(hsl(150 60% 34%), hsl(150 55% 58%));
+  --acb-mark-bg: color-mix(in srgb, var(--_accent) 13%, transparent);
+  --acb-mark-bar: color-mix(in srgb, var(--_accent) 75%, transparent);
+  --acb-ins-bg: hsl(145 60% 45% / 0.13);
+  --acb-ins-bar: hsl(145 55% 48% / 0.85);
+  --acb-ins-fg: light-dark(hsl(145 60% 32%), hsl(145 55% 60%));
+  --acb-del-bg: hsl(355 75% 55% / 0.13);
+  --acb-del-bar: hsl(355 70% 58% / 0.85);
+  --acb-del-fg: light-dark(hsl(355 65% 45%), hsl(355 75% 70%));
+  --acb-warn-bg: hsl(42 95% 50% / 0.14);
+  --acb-warn-bar: hsl(42 90% 52% / 0.9);
+  --acb-info-bg: hsl(210 90% 55% / 0.13);
+  --acb-info-bar: hsl(210 85% 58% / 0.85);
+
+  color-scheme: dark;
+  position: relative;
+  overflow: hidden;
+  font-family: var(--acb-font);
+  font-size: var(--acb-font-size);
+  line-height: var(--acb-line-height);
+  color: var(--_fg);
+  background: var(--_bg);
+  border-radius: var(--acb-radius);
+  /* A hairline ring keeps the block distinct when its background equals the
+     page (e.g. a matching Inkdrop theme) without looking like a box. */
+  outline: 1px solid var(--_ring);
+  outline-offset: -1px;
+  tab-size: var(--acb-tab-size, 4);
+  -webkit-font-smoothing: antialiased;
+}
+
+.acb-frame.is-light {
+  color-scheme: light;
+  --_ring: color-mix(in srgb, var(--_fg) 12%, transparent);
+}
+
+.acb-frame ::selection {
+  background: var(--acb-selection, color-mix(in srgb, var(--_accent) 28%, transparent));
+}
+
+.acb-root {
+  position: relative;
+  margin: 0 0 16px;
+}
+
+/* --------------------------------------------------------------------------
+ * Icons
+ * ------------------------------------------------------------------------ */
+
+.acb-icon,
+.acb-file-icon {
+  flex: none;
+  display: block;
+}
+
+.acb-file-icon-pending {
+  display: inline-block;
+}
+
+/* Monochrome file icons follow the frame; duo-tone ones paint their
+   background layer with a second palette color. */
+.acb-file-icon.is-mono {
+  color: var(--_muted);
+}
+.acb-file-icon .bg {
+  fill: var(--acb-icon-bg, currentColor);
+}
+
+/* --------------------------------------------------------------------------
+ * Header: icon + language (or file name) · info · actions
+ * ------------------------------------------------------------------------ */
+
+.acb-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--acb-header-h);
+  padding: 0 8px 0 var(--acb-pad-x);
+  font-family: var(--acb-ui-font);
+  line-height: 1.2;
+  user-select: none;
+}
+
+.acb-heading {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.acb-lang-name {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--_muted);
+  white-space: nowrap;
+}
+
+.acb-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--_fg) 86%, transparent);
+}
+
+.acb-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+a.acb-title-link,
+a.acb-title-link:visited {
+  color: color-mix(in srgb, var(--_fg) 86%, transparent);
+  text-decoration: none;
+}
+a.acb-title-link .acb-icon {
+  margin-left: 4px;
+  color: var(--_faint);
+  transition:
+    color 0.12s,
+    transform 0.12s;
+}
+a.acb-title-link:hover {
+  color: var(--_fg);
+}
+a.acb-title-link:hover .acb-title-text {
+  text-decoration: underline;
+  text-decoration-color: var(--_faint);
+  text-underline-offset: 3px;
+}
+a.acb-title-link:hover .acb-icon {
+  color: var(--_fg);
+  transform: translate(1px, -1px);
+}
+
+/* line=10-14: part of the file reference, "src/lib.rs:10–14". */
+.acb-range {
+  flex: none;
+  color: var(--_faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.acb-range-text {
+  font-size: 11.5px;
+  color: var(--_faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* branch= / commit=: one quiet git ref next to the title. */
+.acb-ref {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 7px 0 6px;
+  margin-left: 4px;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--_muted);
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--_fg) 6%, transparent);
+  border-radius: 6px;
+}
+.acb-ref .acb-icon {
+  color: var(--_faint);
+}
+.acb-ref-commit {
+  font-family: var(--acb-font);
+  font-size: 10.5px;
+  color: var(--_faint);
+}
+.acb-ref-branch {
+  max-width: 16em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Diff view: "old/path → new/path" and the −N +M stats next to the title. */
+.acb-title-prev {
+  color: var(--_faint);
+}
+.acb-diff-stat {
+  display: inline-flex;
+  flex: none;
+  gap: 6px;
+  margin-left: 2px;
+  font-family: var(--acb-font);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.acb-diff-del {
+  color: var(--acb-del-fg);
+}
+.acb-diff-add {
+  color: var(--acb-ins-fg);
+}
+
+/* --------------------------------------------------------------------------
+ * Actions
+ * ------------------------------------------------------------------------ */
+
+.acb-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+}
+
+.acb-action {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 7px;
+  margin: 0;
+  font: 500 11.5px/1 var(--acb-ui-font);
+  color: var(--_faint);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  transition:
+    color 0.12s,
+    background-color 0.12s,
+    opacity 0.12s;
+}
+.acb-action:hover {
+  color: var(--_fg);
+  background: var(--_hover);
+}
+.acb-action:focus-visible {
+  outline: 2px solid var(--_accent);
+  outline-offset: -1px;
+  color: var(--_fg);
+}
+
+/* The wrap toggle only shows up while the block is in use. */
+.acb-wrap-toggle {
+  opacity: 0;
+}
+.acb-frame:hover .acb-wrap-toggle,
+.acb-frame:focus-within .acb-wrap-toggle,
+.acb-wrap-toggle.is-active {
+  opacity: 1;
+}
+.acb-wrap-toggle.is-active {
+  color: var(--_accent);
+}
+
+/* Copied: the icon turns into a check; nothing else changes. */
+.acb-copy.is-copied,
+.acb-copy.is-copied:hover {
+  color: var(--_ok);
+}
+.acb-copy.is-copied .acb-icon {
+  animation: acb-pop 0.2s ease-out;
+}
+
+@keyframes acb-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+/* Announced to screen readers, not shown. */
+.acb-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Minimal blocks: the actions float over the first line. */
+.acb-float {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  z-index: 2;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--_bg) 82%, transparent);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+/* --------------------------------------------------------------------------
+ * Tabs (code groups)
+ * ------------------------------------------------------------------------ */
+
+.acb-frame.is-group .acb-header {
+  padding-left: calc(var(--acb-pad-x) - 10px);
+}
+
+.acb-tabs {
+  display: flex;
+  flex: 1 1 auto;
+  align-self: stretch;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.acb-tab {
+  appearance: none;
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 7px;
+  height: 100%;
+  padding: 0 10px;
+  margin: 0;
+  font: 500 12px/1 var(--acb-ui-font);
+  color: var(--_muted);
+  white-space: nowrap;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  transition: color 0.12s;
+}
+.acb-tab .acb-file-icon {
+  opacity: 0.55;
+  filter: saturate(0.4);
+  transition:
+    opacity 0.12s,
+    filter 0.12s;
+}
+.acb-tab:hover,
+.acb-tab.is-active {
+  color: var(--_fg);
+}
+.acb-tab:hover .acb-file-icon,
+.acb-tab.is-active .acb-file-icon {
+  opacity: 1;
+  filter: none;
+}
+.acb-tab.is-active::after {
+  content: '';
+  position: absolute;
+  right: 10px;
+  bottom: 4px;
+  left: 10px;
+  height: 2px;
+  background: var(--_accent);
+  border-radius: 2px;
+}
+.acb-tab:focus-visible {
+  outline: 2px solid var(--_accent);
+  outline-offset: -6px;
+  border-radius: 10px;
+}
+
+/* --------------------------------------------------------------------------
+ * Code
+ * ------------------------------------------------------------------------ */
+
+.acb-body {
+  position: relative;
+}
+
+.acb-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--_ring) transparent;
+}
+
+.acb-frame pre.acb-pre {
+  position: static;
+  margin: 0;
+  padding: var(--_pad-top) 0 var(--_pad-bottom);
+  overflow: visible;
+  font: inherit;
+  line-height: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  word-wrap: normal;
+  white-space: pre;
+}
+.acb-frame.has-header {
+  --_pad-top: 0px;
+}
+
+.acb-frame code.acb-code {
+  display: block;
+  width: max-content;
+  min-width: 100%;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  white-space: inherit;
+}
+
+.acb-line {
+  position: relative;
+  display: flex;
+  min-height: calc(var(--acb-line-height) * 1em);
+  padding: 0 var(--acb-pad-x);
+}
+
+.acb-lc {
+  flex: 1 0 auto;
+  white-space: pre;
+}
+
+/* Word wrap: continuation lines keep the line's indentation. */
+.acb-frame.is-wrapped code.acb-code {
+  width: auto;
+}
+.acb-frame.is-wrapped .acb-lc {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-inline-start: calc(var(--acb-indent, 0) * 1ch);
+  text-indent: calc(var(--acb-indent, 0) * -1ch);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Line numbers */
+.acb-gutter {
+  flex: none;
+  width: calc(var(--acb-ln-chars, 2) * 1ch);
+  margin-right: 20px;
+  color: var(--acb-ln-fg, var(--_faint));
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+  opacity: 0.8;
+}
+.acb-gutter::before {
+  content: attr(data-ln);
+}
+.acb-line.acb-mark .acb-gutter,
+.acb-line.acb-ins .acb-gutter,
+.acb-line.acb-del .acb-gutter {
+  color: var(--acb-ln-active-fg, var(--_muted));
+  opacity: 1;
+}
+
+/* --------------------------------------------------------------------------
+ * Line markers: {…}, ins=, del=, diff, [!code …]
+ * ------------------------------------------------------------------------ */
+
+.acb-line.acb-mark {
+  background: var(--acb-mark-bg);
+  box-shadow: inset 2px 0 0 var(--acb-mark-bar);
+}
+.acb-line.acb-ins {
+  background: var(--acb-ins-bg);
+  box-shadow: inset 2px 0 0 var(--acb-ins-bar);
+}
+.acb-line.acb-del,
+.acb-line.acb-error {
+  background: var(--acb-del-bg);
+  box-shadow: inset 2px 0 0 var(--acb-del-bar);
+}
+.acb-line.acb-warning {
+  background: var(--acb-warn-bg);
+  box-shadow: inset 2px 0 0 var(--acb-warn-bar);
+}
+.acb-line.acb-info {
+  background: var(--acb-info-bg);
+  box-shadow: inset 2px 0 0 var(--acb-info-bar);
+}
+
+.acb-line.acb-ins::before,
+.acb-line.acb-del::before {
+  position: absolute;
+  left: 6px;
+  width: 1ch;
+  text-align: center;
+  user-select: none;
+}
+.acb-line.acb-ins::before {
+  content: '+';
+  color: var(--acb-ins-fg);
+}
+.acb-line.acb-del::before {
+  content: '−';
+  color: var(--acb-del-fg);
+}
+
+/* Range labels: {"A":5-7} */
+.acb-label {
+  display: inline-block;
+  margin-right: 0.75em;
+  text-indent: 0;
+  user-select: none;
+}
+.acb-label::before {
+  content: attr(data-label);
+  display: inline-block;
+  min-width: 1.5em;
+  padding: 0 0.45em;
+  font: 600 10.5px/1.6 var(--acb-ui-font);
+  text-align: center;
+  color: var(--_bg);
+  background: var(--acb-mark-bar);
+  border-radius: 999px;
+  vertical-align: 0.1em;
+}
+.acb-label-ins::before {
+  background: var(--acb-ins-bar);
+}
+.acb-label-del::before {
+  background: var(--acb-del-bar);
+}
+
+/* Inline markers: "text", /regex/, [!code word:…] */
+mark.acb-im {
+  padding: 0.1em 0;
+  color: inherit;
+  text-decoration: none; /* Inkdrop underlines <mark> in the preview */
+  background: var(--acb-mark-bg);
+  border-radius: 0;
+}
+mark.acb-im-ins {
+  background: var(--acb-ins-bg);
+}
+mark.acb-im-del {
+  background: var(--acb-del-bg);
+}
+mark.acb-im-start {
+  padding-left: 0.15em;
+  margin-left: -0.15em;
+  border-top-left-radius: 4px;
+  border-bottom-left-radius: 4px;
+}
+mark.acb-im-end {
+  padding-right: 0.15em;
+  margin-right: -0.15em;
+  border-top-right-radius: 4px;
+  border-bottom-right-radius: 4px;
+}
+.acb-word {
+  padding: 0.1em 0.15em;
+  margin: 0 -0.15em;
+  background: var(--acb-mark-bg);
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px var(--acb-mark-bar);
+}
+
+/* [!code focus] */
+.acb-has-focused .acb-line:not(.acb-focused) {
+  opacity: 0.45;
+  filter: blur(0.05em);
+  transition:
+    opacity 0.2s,
+    filter 0.2s;
+}
+.acb-frame:hover .acb-has-focused .acb-line:not(.acb-focused) {
+  opacity: 1;
+  filter: none;
+}
+
+/* Indent guides */
+.acb-pre .indent {
+  position: relative;
+  display: inline-block;
+}
+.acb-pre .indent::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-left: 1px solid var(--acb-indent-guide, color-mix(in srgb, var(--_fg) 10%, transparent));
+}
+
+/* --------------------------------------------------------------------------
+ * Collapsible sections: collapse={…}
+ * ------------------------------------------------------------------------ */
+
+/* Drawn after @pierre/diffs' hunk separators: an icon pill and a label pill,
+   inset from the block edges and pinned to the visible width while the code
+   scrolls sideways. */
+.acb-frame {
+  --_sep-bg: light-dark(
+    color-mix(in srgb, var(--_fg) 5%, transparent),
+    color-mix(in srgb, var(--_fg) 12%, transparent)
+  );
+}
+
+/* Lets separators span the visible width (100cqi) rather than the code's. */
+.acb-scroll:has(details.acb-collapse) {
+  container-type: inline-size;
+}
+
+details.acb-collapse {
+  display: block;
+  margin: 0; /* Inkdrop gives preview <details> a bottom margin */
+  padding: 0;
+  border: 0;
+}
+
+details.acb-collapse > summary,
+.acb-collapse-end {
+  position: sticky;
+  left: 0;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  column-gap: 2px;
+  width: 100%;
+  height: 32px;
+  margin: 8px 0;
+  padding: 0 8px;
+  font: 400 12.5px/1 var(--acb-ui-font);
+  color: var(--_muted);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+@supports (width: 1cqi) {
+  details.acb-collapse > summary,
+  .acb-collapse-end {
+    width: 100cqi;
+  }
+}
+details.acb-collapse > summary::-webkit-details-marker {
+  display: none;
+}
+/* Flush with the block edges, like diffs' first and last separators. */
+code.acb-code > details.acb-collapse:first-child > summary {
+  margin-top: 0;
+}
+code.acb-code > details.acb-collapse:last-child:not([open]) > summary,
+code.acb-code > details.acb-collapse:last-child > .acb-collapse-end {
+  margin-bottom: 0;
+}
+
+.acb-collapse-button,
+.acb-collapse-label {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  background: var(--_sep-bg);
+  transition:
+    color 0.12s,
+    background-color 0.12s;
+}
+.acb-collapse-button {
+  justify-content: center;
+  border-radius: 6px 0 0 6px;
+}
+.acb-collapse-label {
+  padding: 0 1ch;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  border-radius: 0 6px 6px 0;
+}
+.acb-collapse-label::before {
+  content: attr(data-collapsed);
+}
+details.acb-collapse[open] > summary .acb-collapse-label::before,
+.acb-collapse-end .acb-collapse-label::before {
+  content: attr(data-collapse);
+}
+
+svg.acb-collapse-icon {
+  display: block;
+  flex: none;
+  fill: currentColor;
+}
+svg.acb-collapse-icon-up {
+  transform: scaleY(-1);
+}
+details.acb-collapse[open] > summary .acb-collapse-icon:not(.acb-collapse-icon-close),
+details.acb-collapse:not([open]) > summary .acb-collapse-icon-close {
+  display: none;
+}
+
+details.acb-collapse > summary:hover .acb-collapse-button,
+.acb-collapse-end:hover .acb-collapse-button {
+  color: var(--_fg);
+}
+details.acb-collapse > summary:hover .acb-collapse-label,
+.acb-collapse-end:hover .acb-collapse-label {
+  text-decoration: underline;
+}
+details.acb-collapse > summary:focus-visible,
+.acb-collapse-end:focus-visible {
+  outline: none;
+}
+details.acb-collapse > summary:focus-visible > span,
+.acb-collapse-end:focus-visible > span {
+  box-shadow: inset 0 0 0 1.5px var(--_accent);
+}
+
+.acb-collapse-end {
+  display: none;
+}
+.acb-collapse-github[open] > summary,
+.acb-collapse-collapsible-end[open] > summary {
+  display: none;
+}
+details.acb-collapse[open] > .acb-collapse-end {
+  display: grid;
+}
+
+/* --------------------------------------------------------------------------
+ * Long blocks: maxLines
+ * ------------------------------------------------------------------------ */
+
+/* The rows plus the code's top padding; a collapsed section's separator is
+   taller than a line, so a block cut there shows a little less. */
+.acb-frame.is-clamped .acb-scroll {
+  max-height: calc(var(--acb-max-lines) * var(--acb-line-height) * 1em + var(--_pad-top));
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 4em), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 4em), transparent);
+}
+
+.acb-more {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 34px;
+  margin: 0;
+  padding: 0;
+  font: 500 12px/1 var(--acb-ui-font);
+  color: var(--_muted);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  transition:
+    color 0.12s,
+    background-color 0.12s;
+}
+.acb-more:hover {
+  color: var(--_fg);
+  background: var(--_hover);
+}
+.acb-more:focus-visible {
+  outline: 2px solid var(--_accent);
+  outline-offset: -2px;
+}
+
+/* --------------------------------------------------------------------------
+ * Fallback, print, motion
+ * ------------------------------------------------------------------------ */
+
+.acb-frame.is-pending .acb-pre {
+  color: var(--_muted);
+}
+
+.acb-fallback {
+  white-space: pre-wrap;
+}
+
+/* A code group whose frame failed: its tabs as plain buttons. */
+.acb-fallback-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.acb-fallback-tabs > button {
+  font: inherit;
+  cursor: pointer;
+}
+.acb-fallback-tabs > button.is-active {
+  font-weight: 600;
+}
+
+.acb-group-print > .acb-frame + .acb-frame {
+  margin-top: 10px;
+}
+
+/* --------------------------------------------------------------------------
+ * Diff view (@pierre/diffs)
+ *
+ * diffs renders into the shadow root of <diffs-container>. Its look is driven
+ * by inherited `--diffs-*` custom properties; rules here target the host
+ * element, so they win over the `:host` defaults inside the shadow root.
+ * ------------------------------------------------------------------------ */
+
+.acb-diffs[hidden] {
+  display: none;
+}
+
+/* The frame's hairline ring is an outline, which diffs' opaque, isolated
+   content paints over. Draw it as an overlay instead, above the view. */
+.acb-frame:has(> .acb-body > .acb-diffs:not([hidden])) {
+  outline: none;
+}
+.acb-frame:has(> .acb-body > .acb-diffs:not([hidden]))::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px var(--_ring);
+  pointer-events: none;
+}
+
+.acb-diffs diffs-container {
+  --diffs-bg: var(--_bg);
+  --diffs-font-family: var(--acb-font);
+  --diffs-header-font-family: var(--acb-ui-font);
+  --diffs-font-size: 1em;
+  --diffs-line-height: calc(var(--acb-line-height) * 1em);
+  --diffs-tab-size: var(--acb-tab-size, 4);
+  display: block;
+}
+
+.acb-diffs diffs-container + diffs-container {
+  border-top: 1px solid var(--_ring);
+}
+
+@media print {
+  .acb-frame {
+    break-inside: avoid;
+  }
+  .acb-lc {
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere;
+  }
+  .acb-scroll {
+    overflow: visible !important;
+    max-height: none !important;
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
+  }
+  .acb-actions,
+  .acb-float,
+  .acb-more {
+    display: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .acb-frame *,
+  .acb-frame *::before,
+  .acb-frame *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
