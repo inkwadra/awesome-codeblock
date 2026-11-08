@@ -1,7 +1,7 @@
 {
   "name": "awesome-codeblock",
   "main": "./lib/index",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "description": "Awesome code blocks for Inkdrop: themes, titles, line & inline markers, diffs, collapsible sections, word wrap, line numbers, tabs and more",
   "keywords": [
     "inkdrop",
