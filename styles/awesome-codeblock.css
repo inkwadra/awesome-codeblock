@@ -616,10 +616,15 @@ mark.acb-im-end {
   filter: none;
 }
 
-/* Indent guides */
+/* Indent guides. The guide spans hold the leading whitespace; they must not
+   inherit the wrapped line's negative text-indent or its pre-wrap (trailing
+   spaces hang), either of which collapses them to zero width. Blank lines get
+   empty spans offset by --indent-offset. */
 .acb-pre .indent {
   position: relative;
   display: inline-block;
+  text-indent: 0;
+  white-space: pre;
 }
 .acb-pre .indent::before {
   content: '';
@@ -627,7 +632,19 @@ mark.acb-im-end {
   top: 0;
   bottom: 0;
   left: 0;
+  margin-left: var(--indent-offset, 0);
   border-left: 1px solid var(--acb-indent-guide, color-mix(in srgb, var(--_fg) 10%, transparent));
+}
+/* Wrapped: guides run down the continuation rows too. They are positioned
+   against the whole line, horizontally at the span's static position. */
+.acb-frame.is-wrapped .acb-lc {
+  position: relative;
+}
+.acb-frame.is-wrapped .acb-pre .indent {
+  position: static;
+}
+.acb-frame.is-wrapped .acb-pre .indent::before {
+  left: auto;
 }
 
 /* --------------------------------------------------------------------------
