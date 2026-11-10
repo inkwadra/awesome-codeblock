@@ -1,4 +1,5 @@
 import { bundledLanguagesInfo } from 'shiki/langs'
+import { own } from '../shared/record'
 
 /**
  * Fence language → Shiki language resolution, and language classification.
@@ -98,10 +99,44 @@ export function resetUnavailableLanguages(): void {
 export function resolveLanguage(lang: string | undefined | null): string {
   let name = (lang ?? '').trim().toLowerCase()
   if (PLAIN_LANGS.has(name)) return 'text'
-  for (let i = 0; i < MAX_ALIAS_DEPTH && userAliases[name]; i++) name = userAliases[name]!
+  for (let i = 0; i < MAX_ALIAS_DEPTH; i++) {
+    const target = own(userAliases, name)
+    if (!target) break
+    name = target
+  }
   if (name === 'ansi') return 'ansi'
-  const id = aliasToId.get(name) ?? aliasToId.get(EXTRA_ALIASES[name] ?? '')
+  const id = aliasToId.get(name) ?? aliasToId.get(own(EXTRA_ALIASES, name) ?? '')
   return !id || unavailable.has(id) ? 'text' : id
+}
+
+/** Common file extensions that are neither a Shiki language id nor one of its aliases. */
+const OTHER_EXTENSIONS: ReadonlySet<string> = new Set(
+  (
+    'txt text h hh hpp hxx cc cxx m mm s inc def env lock log cfg cnf conf config properties gradle sbt cabal ' +
+    'gemspec podspec ru rake pm el bib j2 tpl tmpl mk ninja bzl bazel tfvars ipynb csproj fsproj vbproj sln xaml ' +
+    'wat map snap list rules service timer socket pem crt key pub example sample'
+  ).split(' ')
+)
+
+/**
+ * True if `ext` (lowercase, no dot) is a file extension the plugin knows: a
+ * Shiki language id or alias (`ts`, `py`, `yml`, …), one of the plugin's or the
+ * user's aliases, or a common extension without a language of its own.
+ */
+export function isKnownFileExtension(ext: string): boolean {
+  return (
+    aliasToId.has(ext) ||
+    OTHER_EXTENSIONS.has(ext) ||
+    own(EXTRA_ALIASES, ext) !== undefined ||
+    own(userAliases, ext) !== undefined
+  )
+}
+
+/** Languages where a line starting with `#` is a heading, not a comment. */
+const HASH_HEADING_LANGS: ReadonlySet<string> = new Set(['markdown', 'mdx'])
+
+export function isHashHeadingLanguage(hlLang: string): boolean {
+  return HASH_HEADING_LANGS.has(hlLang)
 }
 
 const DISPLAY_NAMES: Readonly<Record<string, string>> = {

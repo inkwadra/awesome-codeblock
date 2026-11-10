@@ -62,7 +62,9 @@ export const CodeFrame: React.FC<CodeFrameProps> = ({ model, tabs }) => {
         !!model.diffFiles?.length ||
         (settings.showLanguage && !!model.lang && !isPlainLanguage(model.lang))))
 
-  const actions = printMode ? null : <Actions model={model} wrapped={wrapped} onToggleWrap={toggleWrap} />
+  const actions = printMode ? null : (
+    <Actions model={model} renderedText={rendering.text} wrapped={wrapped} onToggleWrap={toggleWrap} />
+  )
   const classes = classNames(
     'acb-frame',
     `acb-frame-${frame}`,

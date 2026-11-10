@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- A comment in the first lines becomes the title only when it reads as a file name: a name with a known extension
+  (any extension when it is a path such as `conf/app.xyz`), a dotfile, or a name like `Dockerfile`. Use `title=` for
+  anything else.
+
+### Fixed
+
+- Fix ordinary comments being taken for a file name and removed from the code: versions and numbers (`# v2.0`,
+  `// Output: 3.14`), addresses, URLs, and `#` headings in Markdown blocks.
+- Fix a block that consists of a single file-name comment being rendered empty.
+- Fix long lines being cut off at the edge of the block when printing or exporting to PDF; they now wrap.
+- Fix a regex marker with nested repetition, such as `/(a+)+$/`, freezing Inkdrop. Such patterns are now ignored, and
+  a slow pattern stops matching once it has used its time budget for the block.
+- Fix the copy button copying code that differs from the code shown when it contains `[!code …]` comments, for
+  example in blocks without a language.
+- Fix blocks without a language changing their line count once highlighting loads when a line ends with a
+  `[!code …]` comment.
+- Fix the diff header showing a file whose path contains spaces as a rename (`my → file.txt`).
+- Fix meta options named like built-in object members (`constructor={1}`, `toString="a"`) producing broken markers.
+
 ## [0.8.4] - 2026-11-08
 
 ### Fixed

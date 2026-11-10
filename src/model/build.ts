@@ -1,6 +1,6 @@
 import { COLLAPSE_STYLES, DIFF_STYLES, oneOf, type Settings } from '../config'
 import { summarizePatch } from '../diff/summary'
-import { isDiffLanguage, resolveLanguage } from '../highlight/languages'
+import { isDiffLanguage, isHashHeadingLanguage, isKnownFileExtension, resolveLanguage } from '../highlight/languages'
 import { getBool, getInt, getString, parseMeta, type ParsedMeta } from '../meta/parse-meta'
 import { shiftRanges } from '../meta/ranges'
 import { findFileNameComment, isRealDiff, splitLangAndMeta, stripDiffPrefixes } from './source'
@@ -113,8 +113,15 @@ function resolveTitle(
   const explicit = getString(opts, 'title') ?? bracketTitle ?? getString(opts, 'filename')
   if (explicit !== undefined) return explicit
   const extract = frameOpt !== 'none' && (getBool(opts, 'extractFileName') ?? settings.extractFileNameFromCode)
-  const found = extract ? findFileNameComment(draft.lines) : null
+  const found = extract
+    ? findFileNameComment(draft.lines, {
+        isKnownExtension: isKnownFileExtension,
+        hashIsHeading: isHashHeadingLanguage(resolveLanguage(draft.lang))
+      })
+    : null
   if (!found) return undefined
+  // A comment that is the whole block is its content, not a caption for it.
+  if (!draft.lines.some((line, i) => i !== found.index && line.trim() !== '')) return undefined
 
   draft.removed.push(found.index + 1)
   // Also drop a single empty line right after the comment (unless it is the last line).

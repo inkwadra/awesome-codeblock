@@ -167,6 +167,29 @@ describe('summarizePatch', () => {
     ])
   })
 
+  it('keeps spaces in paths', () => {
+    const git = 'diff --git a/my file.txt b/my file.txt\n--- a/my file.txt\n+++ b/my file.txt\n@@ -1 +1 @@\n-a\n+b'
+    expect(summarizePatch(git)).toEqual([{ name: 'my file.txt', additions: 1, deletions: 1 }])
+    // Without the ---/+++ lines the `diff --git` line is all there is.
+    expect(summarizePatch('diff --git a/my file.txt b/my file.txt\n@@ -1 +1 @@\n-a\n+b')[0]?.name).toBe('my file.txt')
+    const renamed = [
+      'diff --git a/old name.txt b/new name.txt',
+      'rename from old name.txt',
+      'rename to new name.txt',
+      '@@ -1 +1 @@',
+      '-a',
+      '+b'
+    ].join('\n')
+    expect(summarizePatch(renamed)).toEqual([
+      { name: 'new name.txt', prevName: 'old name.txt', additions: 1, deletions: 1 }
+    ])
+    const plain = '--- old dir/a.txt\t2026-01-01 10:00:00\n+++ new dir/a.txt\t2026-01-02 10:00:00\n@@ -1 +1 @@\n-a\n+b'
+    expect(summarizePatch(plain)).toEqual([
+      { name: 'new dir/a.txt', prevName: 'old dir/a.txt', additions: 1, deletions: 1 }
+    ])
+    expect(summarizePatch('diff --git "a/sp ace.txt" "b/sp ace.txt"\n@@ -1 +1 @@\n-a\n+b')[0]?.name).toBe('sp ace.txt')
+  })
+
   it('counts header-looking content lines and ignores hunk counts', () => {
     const patch = '--- a/q.sql\n+++ b/q.sql\n@@ -1,1 +1,1 @@\n--- old comment\n+-- new comment\n+select 1;'
     expect(summarizePatch(patch)).toEqual([{ name: 'q.sql', additions: 2, deletions: 1 }])

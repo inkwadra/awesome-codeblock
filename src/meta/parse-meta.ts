@@ -1,3 +1,4 @@
+import { own } from '../shared/record'
 import { parseRangeList, type LineRange } from './ranges'
 
 /**
@@ -234,7 +235,7 @@ export function parseMeta(input: string | undefined | null): ParsedMeta {
         break
       case 'option': {
         const { key, value } = token
-        const markerType = MARKER_KEYS[key]
+        const markerType = own(MARKER_KEYS, key)
         if (markerType) {
           addValue(result, markerType, value)
         } else if (key === 'collapse' && value.type === 'range') {

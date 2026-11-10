@@ -27,6 +27,11 @@ describe('file icons', () => {
     expect(resolve('')).toBe(icons.TEXT_ICON)
     expect(resolve('text')).toBe(icons.TEXT_ICON)
   })
+  it('does not take Object.prototype members for icons', () => {
+    expect(resolve('constructor')).toBe(icons.DEFAULT_ICON)
+    expect(resolve('js', 'constructor')).toBe('lang-javascript-duo')
+    expect(resolve('nope', 'a.constructor', 'text')).toBe(icons.DEFAULT_ICON)
+  })
   it('has SVG data for every mapped icon', () => {
     const names = new Set([
       ...Object.values(icons.LANG_ICONS),

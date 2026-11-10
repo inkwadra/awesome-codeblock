@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vite-plus/test'
+import { isCatastrophicRegex } from '../src/meta/regex-safety'
 import { parseMeta, tokenizeMeta } from '../src/meta/parse-meta'
 import { parseRangeList, shiftRanges } from '../src/meta/ranges'
 
@@ -93,9 +94,59 @@ describe('parseMeta', () => {
   it('supports escaped quotes', () => {
     expect(parseMeta(String.raw`title="say \"hi\""`).options.title).toBe('say "hi"')
   })
+  it('treats Object.prototype names as ordinary keys', () => {
+    const meta = parseMeta('constructor={1} toString="a" valueOf __proto__=x')
+    expect(meta.lineMarkers).toEqual([])
+    expect(meta.inlineMarkers).toEqual([])
+    expect(meta.options).toMatchObject({ constructor: '{1}', toString: 'a', valueOf: true })
+  })
   it('never throws on garbage', () => {
     for (const s of ['{', '"', '/', '[', '=', 'a=', '{"x":}', '/(/', '\\', 'key="unterminated']) {
       expect(() => parseMeta(s)).not.toThrow()
+    }
+  })
+})
+
+describe('isCatastrophicRegex', () => {
+  it('refuses repeated groups that can match the same text in several ways', () => {
+    for (const source of [
+      '(a+)+$',
+      '(a*)*',
+      String.raw`(\w+\s*)+$`,
+      '(a?a?)+',
+      '(.*,)+',
+      String.raw`(a\w+)+`,
+      '(a+|b)+',
+      String.raw`(\w+=\w+)+`,
+      '(?:a{2,3})+',
+      String.raw`(,\w+|\w+;)+`,
+      '(?=(a+)+b)x',
+      '((a+)+)'
+    ]) {
+      expect(isCatastrophicRegex(source), source).toBe(true)
+    }
+    expect(isCatastrophicRegex('(A+a)+', 'i')).toBe(true)
+  })
+  it('accepts repetitions pinned by a literal, and ordinary patterns', () => {
+    for (const source of [
+      String.raw`(\d+\.)+\d+`,
+      String.raw`(?:\w+\.)*\w+`,
+      String.raw`\w+(,\s*\w+)*`,
+      String.raw`(\w+::)*\w+`,
+      '(a+b)+',
+      '(foo|bar)+',
+      '(ab?)+',
+      String.raw`(a+,|b+;)+`,
+      String.raw`api\/(v\d)`,
+      String.raw`user(Id)`,
+      'ba[rz]',
+      String.raw`\bconst\b`,
+      String.raw`(a+){2}`,
+      String.raw`[(a+)+]`,
+      String.raw`\(a+\)+`,
+      'a{2}{'
+    ]) {
+      expect(isCatastrophicRegex(source), source).toBe(false)
     }
   })
 })

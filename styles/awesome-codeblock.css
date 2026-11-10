@@ -895,7 +895,16 @@ details.acb-collapse[open] > .acb-collapse-end {
   .acb-frame {
     break-inside: avoid;
   }
-  .acb-lc {
+  /* Paper doesn't scroll: wrap every block like `wrap` does, or long lines
+     are cut off at the frame's edge. */
+  .acb-frame code.acb-code {
+    width: auto !important;
+  }
+  .acb-frame .acb-lc {
+    flex: 1 1 auto !important;
+    min-width: 0;
+    padding-inline-start: calc(var(--acb-indent, 0) * 1ch);
+    text-indent: calc(var(--acb-indent, 0) * -1ch);
     white-space: pre-wrap !important;
     overflow-wrap: anywhere;
   }

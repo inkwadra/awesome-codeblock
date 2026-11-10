@@ -1,7 +1,7 @@
 import type { Root } from 'hast'
 import type { HighlighterCore, ShikiTransformer } from 'shiki/core'
 import { hastToHtml } from 'shiki/core'
-import { notationFreeLines, type BlockModel } from '../model'
+import { isSingleTokenLines, notationFreeLines, type BlockModel } from '../model'
 import { h } from '../shared/hast'
 import { log } from '../shared/log'
 import { effectiveLanguage } from './shiki'
@@ -42,11 +42,11 @@ const emptyOutput = (): StructureOutput => ({ lineCount: 0, visibleRows: 0 })
 /**
  * Unhighlighted hast with the same structure as a highlighted block: line
  * markers, labels, inline markers, collapsed sections. Notation comments are
- * removed (but not applied).
+ * removed (but not applied), as closely as that can be told without tokens.
  */
 function plainRoot(model: BlockModel, output: StructureOutput): Root {
   const lines = model.notation
-    ? notationFreeLines(model.code)
+    ? notationFreeLines(model.code, isSingleTokenLines(model))
     : model.code.split('\n').map((text, i) => ({ source: i + 1, text }))
   const code = h(
     'code',

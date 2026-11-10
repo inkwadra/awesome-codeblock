@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from 'vite-plus/test'
+import { beforeAll, describe, expect, it, vi } from 'vite-plus/test'
 import { configSchema, type Settings } from '../src/config'
 import { highlight } from '../src/highlight/service'
 import { renderBlock, renderPlain } from '../src/highlight/render'
@@ -105,6 +105,28 @@ describe('renderBlock', () => {
     expect(findInlineRanges('abc', compileInlineMarkers(m.inlineMarkers))).toEqual([{ start: 1, end: 3, type: 'del' }])
   })
 
+  it('ignores a regex marker that would backtrack catastrophically', () => {
+    const m = model('text', '/(a+)+$/ "aa"', `${'a'.repeat(40)}!`)
+    const started = performance.now()
+    const r = renderPlain(m)
+    expect(performance.now() - started).toBeLessThan(1000)
+    // The text marker on the same block still applies.
+    expect(r.html).toContain('acb-im-mark')
+  })
+
+  it('stops a slow regex marker once its time budget is spent', () => {
+    let now = 0
+    const spy = vi.spyOn(performance, 'now').mockImplementation(() => (now += 30))
+    try {
+      const [match] = compileInlineMarkers(model('text', '/a/', 'a').inlineMarkers)
+      expect(match!('a')).toHaveLength(1)
+      expect(match!('a')).toHaveLength(1)
+      expect(match!('a')).toHaveLength(0)
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
   it('creates collapsible sections', async () => {
     const r = await render('js', 'collapse={2-3}', 'a\nb\nc\nd')
     expect(r.html).toContain('<details class="acb-collapse acb-collapse-github">')
@@ -125,6 +147,28 @@ describe('renderBlock', () => {
     expect(r.html).toContain('acb-has-focused')
     expect(r.html).toContain('acb-mark')
     expect(r.html).not.toContain('[!code')
+  })
+
+  it('reports the code as rendered, for the copy button', async () => {
+    const r = await render('js', '', 'a() // [!code ++]\n// [!code highlight]\nb()\nc() # [!code --]')
+    // `#` is no comment in JavaScript: Shiki keeps it, and so does the copy.
+    expect(r.text).toBe('a()\nb()\nc() # [!code --]')
+    expect((await render('js', '', 'a()\n  b()  ')).text).toBeUndefined()
+    expect((await render('js', 'notation=false', 'a() // [!code ++]')).text).toBeUndefined()
+    const guides = await render('js', 'indentGuides', 'if (a) {\n\tb() // [!code ++]\n\n    c()\n}')
+    expect(guides.text).toBe('if (a) {\n\tb()\n\n    c()\n}')
+  })
+
+  it('shows code without a grammar the same before and after highlighting', async () => {
+    const code = 'keep // [!code ++]\n// [!code highlight]\nlast # [!code --]'
+    for (const lang of ['text', 'nonexistent', '']) {
+      const m = model(lang, '', code)
+      const r = await highlight({ model: m, theme: 'github-dark' })
+      const plain = renderPlain(m)
+      expect(r.text, lang).toBe('keep // [!code ++]\nlast # [!code --]')
+      expect(plain.text, lang).toBe(r.text)
+      expect(plain.lineCount, lang).toBe(r.lineCount)
+    }
   })
 
   it('keeps notation comments when disabled', async () => {

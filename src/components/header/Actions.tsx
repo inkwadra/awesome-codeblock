@@ -50,14 +50,16 @@ const CopyButton: React.FC<{ getText: () => string }> = ({ getText }) => {
 
 export interface ActionsProps {
   model: BlockModel
+  /** The code as the block shows it, when that differs from `model.code` (see `StructureOutput.text`). */
+  renderedText?: string
   wrapped: boolean
   onToggleWrap: () => void
 }
 
 /** Wrap toggle and copy button, each enabled by a setting. */
-export const Actions: React.FC<ActionsProps> = ({ model, wrapped, onToggleWrap }) => {
+export const Actions: React.FC<ActionsProps> = ({ model, renderedText, wrapped, onToggleWrap }) => {
   const { wrapButton, copyButton } = useSettings()
-  const getText = useCallback(() => getCopyText(model), [model])
+  const getText = useCallback(() => getCopyText(model, renderedText), [model, renderedText])
   if (!wrapButton && !copyButton) return null
   return (
     <div className="acb-actions">

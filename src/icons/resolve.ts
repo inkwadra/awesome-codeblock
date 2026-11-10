@@ -1,5 +1,6 @@
 /** Icon lookup, kept free of React so it can be unit-tested. */
 import { isPlainLanguage } from '../highlight/languages'
+import { own } from '../shared/record'
 
 export type FileIcons = typeof import('./file-icons.generated')
 
@@ -7,12 +8,12 @@ export type FileIcons = typeof import('./file-icons.generated')
 export function iconForFileName(icons: FileIcons, fileName: string): string | undefined {
   const base = fileName.trim().split(/[\\/]/).pop()?.toLowerCase() ?? ''
   if (!base) return undefined
-  const byName = icons.FILE_NAME_ICONS[base]
+  const byName = own(icons.FILE_NAME_ICONS, base)
   if (byName) return byName
   const parts = base.split('.')
   for (let i = 1; i < parts.length; i++) {
     const ext = parts.slice(i).join('.')
-    const icon = icons.EXT_ICONS[ext]
+    const icon = own(icons.EXT_ICONS, ext)
     if (icon) return icon
   }
   return undefined
@@ -20,7 +21,7 @@ export function iconForFileName(icons: FileIcons, fileName: string): string | un
 
 function iconForLanguage(icons: FileIcons, lang: string | undefined): string | undefined {
   const key = (lang ?? '').toLowerCase()
-  return key ? (icons.LANG_ICONS[key] ?? icons.EXT_ICONS[key]) : undefined
+  return key ? (own(icons.LANG_ICONS, key) ?? own(icons.EXT_ICONS, key)) : undefined
 }
 
 /**

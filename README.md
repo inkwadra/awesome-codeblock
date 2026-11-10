@@ -105,6 +105,10 @@ print("the comment above becomes the title and is removed from the code")
 the title when the block has none; turn this off per block with `extractFileName=false` or globally with
 **File name from code**. `frame="none"` removes the header entirely.
 
+A comment counts as a file name when it has a known extension (`app.ts`, `values.yaml`), is a path with any extension
+(`conf/app.xyz`), a dotfile (`.env.local`) or a name such as `Dockerfile`. Comments like `# v2.0` or a URL stay in the
+code, and so does a `#` heading in a Markdown block (use `<!-- notes.md -->` there).
+
 ### Line markers
 
 ````md
@@ -139,6 +143,9 @@ const current = 'https://example.com/api/v2'
 A quoted string marks every occurrence of the text; a `/regex/` marks every match, or only the capture groups when the
 pattern has them. Regex flags `i`, `m`, `s`, `u` and `v` are supported. Prefix a marker with `ins=` or `del=` to color
 it as an insertion or deletion.
+
+A pattern that repeats a group which itself matches a variable amount of text, such as `/(a+)+/` or `/(\w+\s*)+/`, is
+ignored: it can take seconds per line. Separate the repeats with a literal instead, as in `/(\w+,)+/`.
 
 ### Notation comments
 
@@ -365,7 +372,8 @@ The full list is at the top of [`styles/awesome-codeblock.css`](styles/awesome-c
 - **Other code block plugins.** Languages that another plugin renders (`mermaid`, `math`, …) are left untouched,
   including plugins activated later. Add any other language to **Ignored languages** to keep Inkdrop's renderer for it.
 - **Export and print.** Grouped tabs are printed one after another with their labels as titles, blocks cut by
-  `maxLines` are printed in full, and diff views fall back to the classic colored-line rendering.
+  `maxLines` are printed in full, long lines wrap on paper, and diff views fall back to the classic colored-line
+  rendering.
 - **Loading.** Grammars and themes load on demand, so a note pulls in only the languages it uses. Code blocks and diff
   views share one Shiki instance, so each grammar and theme is loaded once. A language whose grammar fails to load is
   shown as plain text.

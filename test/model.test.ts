@@ -32,6 +32,50 @@ describe('file name extraction', () => {
     expect(findFileNameComment(['# Install dependencies'])).toBeNull()
     expect(findFileNameComment(['const x = 1', '// a.js'])).toBeNull()
   })
+  it('leaves comments that only resemble a file name in the code', () => {
+    const untouched: Array<[lang: string, code: string]> = [
+      ['py', '# Version: 1.2.3\nprint(1)'],
+      ['sh', '# v2.0\necho hi'],
+      ['js', '// Output: 3.14\nconsole.log(Math.PI)'],
+      ['js', '// https://example.com/docs/api.html\nfetch(url)'],
+      ['js', '// TODO: refactor.this\nfoo()'],
+      ['css', '/* 1.5 */\na{}'],
+      ['text', '# 192.168.1.1\n127.0.0.1 localhost'],
+      ['sql', '-- 2024.01.15\nselect 1']
+    ]
+    for (const [lang, code] of untouched) {
+      const m = build(lang, '', code)
+      expect(m.title, code).toBeUndefined()
+      expect(m.code, code).toBe(code)
+    }
+  })
+  it('reads `#` as a heading in Markdown', () => {
+    for (const lang of ['md', 'markdown', 'mdx']) {
+      expect(build(lang, '', '# Node.js\n\nSome text').title, lang).toBeUndefined()
+      expect(build(lang, '', '## notes.md\n\nSome text').code, lang).toBe('## notes.md\n\nSome text')
+    }
+    expect(build('md', '', '<!-- docs/intro.md -->\n# Intro').title).toBe('docs/intro.md')
+    expect(build('py', '', '# main.py\nprint(1)').title).toBe('main.py')
+  })
+  it('accepts known extensions, dotfiles, bare names and paths', () => {
+    const titled: Array<[code: string, title: string]> = [
+      ['# values.yaml\nkey: 1', 'values.yaml'],
+      ['// src/components/Button.tsx\nexport {}', 'src/components/Button.tsx'],
+      ['# .env.local\nA=1', '.env.local'],
+      ['# Dockerfile\nFROM node', 'Dockerfile'],
+      ['// include/core.h\nint x;', 'include/core.h'],
+      ['# requirements.txt\nflask', 'requirements.txt'],
+      // An unknown extension is taken for one when the name is a path.
+      ['# conf/app.xyz\nA=1', 'conf/app.xyz']
+    ]
+    for (const [code, title] of titled) expect(build('text', '', code).title, code).toBe(title)
+    expect(build('text', '', '# app.xyz\nA=1').title).toBeUndefined()
+  })
+  it('keeps a comment that is the whole block', () => {
+    expect(build('bash', '', '# setup.sh')).toMatchObject({ code: '# setup.sh' })
+    expect(build('bash', '', '# setup.sh').title).toBeUndefined()
+    expect(build('bash', '', '# setup.sh\n\n').title).toBeUndefined()
+  })
   it('respects explicit title, frame=none and the setting', () => {
     expect(build('js', 'title="x"', '// a.js\n1').code).toBe('// a.js\n1')
     expect(build('js', 'frame="none"', '// a.js\n1').title).toBeUndefined()
@@ -123,6 +167,17 @@ describe('getCopyText', () => {
   it('keeps notations Shiki does not know', () => {
     const m = build('ts', '', 'a() // [!code nope]\nb() // [!code info]')
     expect(getCopyText(m)).toBe('a() // [!code nope]\nb()')
+  })
+  it('copies the rendered code when it is given', () => {
+    const m = build('ts', '', 'a() // [!code ++]')
+    expect(getCopyText(m, 'a()')).toBe('a()')
+    // Without notation comments the code is copied as written.
+    expect(getCopyText(build('ts', '', 'a()'), 'ignored')).toBe('a()')
+    expect(getCopyText(build('ts', 'notation=false', 'a() // [!code ++]'), 'ignored')).toBe('a() // [!code ++]')
+  })
+  it('keeps trailing notations in code without a grammar, where Shiki keeps them', () => {
+    const m = build('text', '', 'keep // [!code ++]\n// [!code highlight]\nlast')
+    expect(getCopyText(m)).toBe('keep // [!code ++]\nlast')
   })
   it('keeps shell sessions verbatim', () => {
     const m = build('console', '', '$ npm i\n# comment\nadded 1 package')

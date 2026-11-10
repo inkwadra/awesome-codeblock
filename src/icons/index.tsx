@@ -1,6 +1,7 @@
 import React, { useEffect, useSyncExternalStore } from 'react'
 import { lazy } from '../shared/lazy'
 import { log } from '../shared/log'
+import { own } from '../shared/record'
 import { createStore } from '../shared/store'
 import { resolveFileIcon, type FileIcons } from './resolve'
 import { UI_ICON_SVG, type SvgData } from './ui-icons.generated'
@@ -74,7 +75,7 @@ export const FileTypeIcon: React.FC<FileTypeIconProps> = ({ lang, hlLang, title,
   const icons = useFileIcons()
   if (!icons) return <span className="acb-file-icon acb-file-icon-pending" style={{ width: size, height: size }} />
   const name = resolveFileIcon(icons, { lang, hlLang, title })
-  const data = icons.FILE_ICON_SVG[name] ?? icons.FILE_ICON_SVG[icons.DEFAULT_ICON]
+  const data = own(icons.FILE_ICON_SVG, name) ?? own(icons.FILE_ICON_SVG, icons.DEFAULT_ICON)
   if (!data) return null
   const [viewBox, body, colors, opacity] = data
   const shade = dark ? 0 : 1

@@ -2,7 +2,7 @@ import type { Element, ElementContent } from 'hast'
 import type { ShikiTransformer } from 'shiki/core'
 import type { CollapseStyle } from '../../config'
 import type { LineRange } from '../../meta/ranges'
-import type { BlockModel, ResolvedLineMarker } from '../../model'
+import { mayHaveNotation, type BlockModel, type ResolvedLineMarker } from '../../model'
 import { addClass, classList, h, hasClass, textContent } from '../../shared/hast'
 import { applyInlineRanges, compileInlineMarkers, findInlineRanges, MARKER_PRIORITY } from './inline-markers'
 
@@ -21,6 +21,11 @@ export interface StructureOutput {
   lineCount: number
   /** Rows shown before anything is expanded: a closed collapsed section counts as one. */
   visibleRows: number
+  /**
+   * The code as rendered, when notation comments may have been removed from
+   * it: what the copy button copies. Unset when it is `model.code`.
+   */
+  text?: string
 }
 
 export function isLine(node: ElementContent): node is Element {
@@ -265,11 +270,15 @@ export function structureCode(code: Element, model: BlockModel, output: Structur
 
   const sourceLines = sources.reduce((max, src) => Math.max(max, src), 0)
   const { strongest, labels } = indexLineMarkers(model.lineMarkers, sourceLines)
+  const written = mayHaveNotation(model) ? model.code.split('\n') : undefined
+  const shown: string[] = []
   lines.forEach((line, i) => {
     const src = sources[i]!
     const marker = strongest[src - 1]
     const label = labels.get(src)
     const text = textContent(line)
+    // A removed trailing comment leaves the space that preceded it.
+    if (written) shown.push(text === written[src - 1] ? text : text.trimEnd())
     const indent = (model.preserveIndent ? indentColumns(text, model.tabSize) : 0) + model.hangingIndent
 
     const ranges = findInlineRanges(text, matchers)
@@ -296,6 +305,7 @@ export function structureCode(code: Element, model: BlockModel, output: Structur
     line.children = [...gutter, content]
   })
 
+  if (written) output.text = shown.join('\n')
   // Lines are display:block: the "\n" text nodes between them are dropped.
   code.children = wrapCollapsed(lines, sources, sourceLines, model, output)
 }
